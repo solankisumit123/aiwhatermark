@@ -3,6 +3,8 @@ import { Plus, Image as ImageIcon, Video, ShieldCheck, Zap, CheckCircle2 } from 
 import { Badge } from '@/components/ui/badge';
 import { images, stats } from '@/mock';
 import { toast } from 'sonner';
+import CleanupPanel, { processFilesSequentially } from './CleanupPanel';
+import { useNavigate } from 'react-router-dom';
 
 const iconFor = (i) => {
   if (i === 0) return <ShieldCheck className="w-5 h-5" strokeWidth={1.5} />;
@@ -13,24 +15,29 @@ const iconFor = (i) => {
 const Hero = () => {
   const [tab, setTab] = useState('images');
   const [dragging, setDragging] = useState(false);
+  const [items, setItems] = useState([]);
   const inputRef = useRef(null);
+  const navigate = useNavigate();
 
-  const handleFiles = (files) => {
+  const handleFiles = async (files) => {
     if (!files || files.length === 0) return;
-    toast.success(`${files.length} image(s) ready — cleanup runs locally.`, {
-      description: 'This is a UI demo, no actual processing performed.',
-    });
+    const list = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (list.length === 0) {
+      toast.error('Please choose image files (JPG, PNG, WebP).');
+      return;
+    }
+    toast.info(`Cleaning ${list.length} image${list.length > 1 ? 's' : ''} locally…`);
+    await processFilesSequentially(list, setItems);
+    toast.success('Done. Drag the slider to compare before/after.');
   };
 
   return (
-    <section className="relative overflow-hidden bg-[#f5f5f7]">
-      {/* subtle radial glow */}
+    <section id="tool" className="relative overflow-hidden bg-[#f5f5f7]">
       <div className="pointer-events-none absolute inset-0 -z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-gradient-to-b from-blue-100/60 to-transparent blur-3xl rounded-full" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6 pt-16 pb-20">
-        {/* Floating hero images */}
         <img
           src={images.heroLeft}
           alt="Watermarked sample"
@@ -53,7 +60,6 @@ const Hero = () => {
             No upload, no sign-up — 100% local, private processing.
           </p>
 
-          {/* Tabs */}
           <div className="mt-8 inline-flex items-center rounded-full bg-white shadow-sm border border-neutral-200 p-1">
             <button
               onClick={() => setTab('images')}
@@ -64,17 +70,14 @@ const Hero = () => {
               <ImageIcon className="w-4 h-4" /> Images
             </button>
             <button
-              onClick={() => setTab('videos')}
-              className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm font-medium transition-colors ${
-                tab === 'videos' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500 hover:text-neutral-800'
-              }`}
+              onClick={() => navigate('/video')}
+              className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm font-medium transition-colors text-neutral-500 hover:text-neutral-800`}
             >
               <Video className="w-4 h-4" /> Videos
               <Badge className="ml-1 h-4 px-1.5 text-[10px] bg-neutral-200 text-neutral-700 hover:bg-neutral-200 rounded-sm">BETA</Badge>
             </button>
           </div>
 
-          {/* Uploader */}
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -116,7 +119,6 @@ const Hero = () => {
             </div>
           </div>
 
-          {/* Stats row */}
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6">
             {stats.map((s, i) => (
               <div key={i} className="flex items-center justify-center gap-2 text-neutral-700">
@@ -126,6 +128,8 @@ const Hero = () => {
             ))}
           </div>
         </div>
+
+        <CleanupPanel items={items} setItems={setItems} />
       </div>
     </section>
   );

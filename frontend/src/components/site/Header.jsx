@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown, Github, Star, Download, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,7 @@ const Header = () => {
                 <DropdownMenuItem>Skills</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <a href="#" className="hover:text-neutral-900">Gemini Video Remover</a>
+            <Link to="/video" className="hover:text-neutral-900">Gemini Video Remover</Link>
           </nav>
         </div>
 

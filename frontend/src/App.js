@@ -9,6 +9,7 @@ import Toolkit from './components/site/Toolkit';
 import Workflow from './components/site/Workflow';
 import { FAQ, FinalCTA, Footer } from './components/site/FAQ';
 import { Toaster } from './components/ui/sonner';
+import VideoRemover from './pages/VideoRemover';
 
 const Landing = () => (
   <div className="min-h-screen bg-[#f5f5f7] text-neutral-900 antialiased">
@@ -33,6 +34,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/video" element={<VideoRemover />} />
         </Routes>
       </BrowserRouter>
     </div>

@@ -2,11 +2,11 @@ import React from 'react';
 import { features } from '@/mock';
 import {
   Sparkles, Star, Layers, Shield, Image as ImageIcon,
-  Chrome, Terminal, Monitor, Code,
+  Bot, ScanSearch, Monitor, Lock,
 } from 'lucide-react';
 
 const iconMap = {
-  Sparkles, Star, Layers, Shield, Image: ImageIcon, Chrome, Terminal, Monitor, Code,
+  Sparkles, Star, Layers, Shield, Image: ImageIcon, Bot, ScanSearch, Monitor, Lock,
 };
 
 const Toolkit = () => {
@@ -15,7 +15,7 @@ const Toolkit = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-neutral-900 leading-tight">
-            Complete Google Gemini watermark removal toolkit
+            Complete AI watermark removal toolkit
           </h2>
           <p className="mt-5 text-neutral-500 text-lg">
             Pixel-accurate restoration · batch processing · 100% local · multiple workflow options

@@ -1,8 +1,8 @@
 import React from 'react';
 import { workflows } from '@/mock';
-import { AppWindow, FileVideo, SquareTerminal, ArrowRight } from 'lucide-react';
+import { Package, FileVideo, SlidersHorizontal, ArrowRight } from 'lucide-react';
 
-const iconMap = { AppWindow, FileVideo, SquareTerminal };
+const iconMap = { Package, FileVideo, SlidersHorizontal };
 
 const Workflow = () => {
   return (
@@ -13,7 +13,7 @@ const Workflow = () => {
             Need another workflow?
           </h2>
           <p className="mt-5 text-neutral-600 text-lg leading-relaxed">
-            Pick the path that matches where you already work: Gemini page, video cleanup, terminal, or agent.
+            Images, videos, batches — every cleanup path runs fully in your browser.
           </p>
           <a
             href="#tool"

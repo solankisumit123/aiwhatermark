@@ -6,7 +6,7 @@ const HowTo = () => {
     <section className="bg-[#f5f5f7] py-24">
       <div className="max-w-7xl mx-auto px-6">
         <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-neutral-900 text-center">
-          How to remove a Gemini watermark online
+          How to remove an AI watermark online
         </h2>
         <div className="mt-14 grid md:grid-cols-3 gap-6">
           {steps.map((s) => (

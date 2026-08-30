@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Plus, Image as ImageIcon, Video, ShieldCheck, Zap, CheckCircle2 } from 'lucide-react';
+import { Plus, Image as ImageIcon, Video, ShieldCheck, Zap, CheckCircle2, Wand2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { images, stats } from '@/mock';
+import { AI_TOOLS } from '@/lib/aiPresets';
 import { toast } from 'sonner';
 import CleanupPanel, { processFilesSequentially } from './CleanupPanel';
 import { useNavigate } from 'react-router-dom';
@@ -16,8 +17,11 @@ const Hero = () => {
   const [tab, setTab] = useState('images');
   const [dragging, setDragging] = useState(false);
   const [items, setItems] = useState([]);
+  const [tool, setTool] = useState('auto');
   const inputRef = useRef(null);
   const navigate = useNavigate();
+
+  const selectedTool = AI_TOOLS.find((t) => t.id === tool) || AI_TOOLS[0];
 
   const handleFiles = async (files) => {
     if (!files || files.length === 0) return;
@@ -26,8 +30,8 @@ const Hero = () => {
       toast.error('Please choose image files (JPG, PNG, WebP).');
       return;
     }
-    toast.info(`Cleaning ${list.length} image${list.length > 1 ? 's' : ''} locally…`);
-    await processFilesSequentially(list, setItems);
+    toast.info(`Cleaning ${list.length} image${list.length > 1 ? 's' : ''} locally (${selectedTool.name})…`);
+    await processFilesSequentially(list, setItems, tool);
     toast.success('Done. Drag the slider to compare before/after.');
   };
 
@@ -51,17 +55,18 @@ const Hero = () => {
 
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <h1 className="text-5xl md:text-6xl font-semibold tracking-tight text-neutral-900 leading-[1.05]">
-            Gemini Watermark Remover
+            AI Watermark Remover
           </h1>
           <p className="mt-6 text-lg text-neutral-600 leading-relaxed">
-            Free online Gemini watermark cleaner for images, logos, and star overlays.
+            Remove watermarks from Sora, Runway, Pika Labs, Kling AI, Luma, Gemini &amp; 10+ more AI generators.
           </p>
           <p className="mt-1 text-lg text-neutral-600 leading-relaxed">
-            No upload, no sign-up — 100% local, private processing.
+            Reverse alpha blending — no upload, no sign-up, 100% local &amp; private.
           </p>
 
           <div className="mt-8 inline-flex items-center rounded-full bg-white shadow-sm border border-neutral-200 p-1">
             <button
+              data-testid="tab-images"
               onClick={() => setTab('images')}
               className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm font-medium transition-colors ${
                 tab === 'images' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500 hover:text-neutral-800'
@@ -70,6 +75,7 @@ const Hero = () => {
               <ImageIcon className="w-4 h-4" /> Images
             </button>
             <button
+              data-testid="tab-videos"
               onClick={() => navigate('/video')}
               className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm font-medium transition-colors text-neutral-500 hover:text-neutral-800`}
             >
@@ -78,7 +84,30 @@ const Hero = () => {
             </button>
           </div>
 
+          <div className="mt-6" id="supported">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 flex items-center justify-center gap-1.5">
+              <Wand2 className="w-3.5 h-3.5" /> Select your AI generator
+            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 max-w-2xl mx-auto" data-testid="ai-tool-selector">
+              {AI_TOOLS.map((t) => (
+                <button
+                  key={t.id}
+                  data-testid={`ai-select-${t.id}`}
+                  onClick={() => setTool(t.id)}
+                  className={`px-3 h-8 rounded-full text-[13px] font-medium border transition-all ${
+                    tool === t.id
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                      : 'bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400 hover:text-neutral-900'
+                  }`}
+                >
+                  {t.short}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div
+            data-testid="dropzone"
             onDragOver={(e) => {
               e.preventDefault();
               setDragging(true);
@@ -106,16 +135,20 @@ const Hero = () => {
                 multiple
                 accept="image/*"
                 className="hidden"
+                data-testid="file-input"
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <button
+                data-testid="start-photos-button"
                 onClick={() => inputRef.current?.click()}
                 className="flex items-center gap-2 px-6 h-12 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all"
               >
                 <Plus className="w-5 h-5" />
                 Start with photos
               </button>
-              <p className="mt-3 text-sm text-neutral-500 font-medium">or drag images here</p>
+              <p className="mt-3 text-sm text-neutral-500 font-medium">
+                or drag images here · mode: <span className="text-neutral-700 font-semibold">{selectedTool.name}</span>
+              </p>
             </div>
           </div>
 

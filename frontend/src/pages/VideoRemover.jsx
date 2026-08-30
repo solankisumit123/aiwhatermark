@@ -6,7 +6,7 @@ import { Footer } from '../components/site/FAQ';
 import { Badge } from '../components/ui/badge';
 import { Toaster } from '../components/ui/sonner';
 import { toast } from 'sonner';
-import { cleanImageOnCanvas } from '../lib/watermarkCleaner';
+import { cleanCanvas } from '../lib/watermarkCleaner';
 
 const VideoRemover = () => {
   const [videoURL, setVideoURL] = useState(null);
@@ -113,7 +113,7 @@ const VideoRemover = () => {
     if (!cleanedURL) return;
     const a = document.createElement('a');
     a.href = cleanedURL;
-    a.download = 'gemini-video-clean.webm';
+    a.download = 'ai-video-clean.webm';
     a.click();
   };
 
@@ -131,11 +131,11 @@ const VideoRemover = () => {
           </div>
           <div>
             <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-              Gemini Video Watermark Remover
+              AI Video Watermark Remover
               <Badge className="ml-2 align-middle bg-blue-100 text-blue-700 hover:bg-blue-100">BETA</Badge>
             </h1>
             <p className="text-neutral-600 mt-1">
-              Local, in-browser cleanup for short Gemini clips. No upload, no sign-up.
+              Local, in-browser cleanup for short AI-generated clips. No upload, no sign-up.
             </p>
           </div>
         </div>
@@ -240,18 +240,9 @@ const VideoRemover = () => {
   );
 };
 
-// Inline canvas cleaner (avoids re-decoding an image element). Mirrors
-// the same corner-region replacement approach as watermarkCleaner.js.
+// Inline canvas cleaner: runs the reverse alpha blending engine on each frame.
 function applyCleanupInPlace(ctx, W, H) {
-  const wmW = Math.round(W * 0.14);
-  const wmH = Math.round(H * 0.11);
-  const pad = Math.round(Math.min(W, H) * 0.008);
-  const wmX = W - wmW - pad;
-  const wmY = H - wmH - pad;
-  const srcX = Math.max(0, wmX - wmW);
-  const srcY = wmY;
-  const patch = ctx.getImageData(srcX, srcY, wmW, wmH);
-  ctx.putImageData(patch, wmX, wmY);
+  cleanCanvas(ctx.canvas, 'auto');
 }
 
 export default VideoRemover;

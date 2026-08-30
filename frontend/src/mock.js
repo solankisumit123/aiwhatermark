@@ -1,24 +1,24 @@
 export const stats = [
   { label: 'Runs in your browser — no upload' },
-  { label: '~1s per 1MP image on a laptop' },
-  { label: 'Pixel-exact restoration, matches original' },
+  { label: '12+ AI generators supported' },
+  { label: 'Reverse alpha blending, not AI repaint' },
 ];
 
 export const steps = [
   {
     n: 1,
-    title: 'Upload your photos',
-    desc: 'Drag or select watermarked images (JPG, PNG, WebP). Batch supported.',
+    title: 'Pick the AI tool & upload',
+    desc: 'Choose Sora, Runway, Pika Labs, Kling AI, Gemini or Auto-Detect, then drag your watermarked images in. Batch supported.',
   },
   {
     n: 2,
     title: 'Auto-remove watermark',
-    desc: 'Runs in-browser, reverses the watermark overlay to restore original pixels. Fully local, lossless.',
+    desc: 'The engine reverses the watermark overlay with alpha blending math to restore original pixels — fully local, no AI guesswork.',
   },
   {
     n: 3,
     title: 'Download clean images',
-    desc: 'Download clean images as lossless PNG — one by one or as a ZIP.',
+    desc: 'Compare before/after with the slider, then download lossless PNGs one by one or all together as a ZIP.',
   },
 ];
 
@@ -26,17 +26,27 @@ export const features = [
   {
     icon: 'Sparkles',
     title: 'Reverse alpha blending, not AI inpainting',
-    desc: 'Uses stronger watermark-region detection and calibrated alpha maps to reconstruct pixels under the watermark — no model repaint, no soft edges.',
+    desc: 'Reconstructs the pixels under the watermark with the exact blend math: original = (watermarked − alpha × logo) / (1 − alpha). No model repaint, no soft edges.',
+  },
+  {
+    icon: 'Bot',
+    title: '12+ AI generators supported',
+    desc: 'Sora, Runway, Pika Labs, Kling AI, Luma Dream Machine, Bing Image Creator, Adobe Firefly, Leonardo AI, Ideogram, Grok Imagine, Playground AI, Hailuo, Vidu, Meta AI and Gemini.',
+  },
+  {
+    icon: 'ScanSearch',
+    title: 'Auto watermark detection',
+    desc: 'Adaptive engine estimates the watermark position and per-pixel opacity directly from your image — or pick the AI tool for targeted removal.',
   },
   {
     icon: 'Star',
-    title: 'Covers Gemini logo, star overlay, Nano Banana',
-    desc: 'Handles Gemini logo marks, star overlays, and Nano Banana watermark variants in supported image outputs.',
+    title: 'Pixel-exact Gemini / Nano Banana cleanup',
+    desc: 'Ships calibrated Gemini alpha maps for every logo size and margin variant, so the star overlay is reversed exactly, pixel for pixel.',
   },
   {
     icon: 'Layers',
-    title: 'Bulk parallel processing',
-    desc: 'Drop multiple images, process in parallel in-browser, download individually or as ZIP.',
+    title: 'Bulk processing + ZIP export',
+    desc: 'Drop multiple images at once, watch each get cleaned, then download everything as a single ZIP.',
   },
   {
     icon: 'Shield',
@@ -46,52 +56,46 @@ export const features = [
   {
     icon: 'Image',
     title: 'All formats · all resolutions',
-    desc: 'Accepts JPG, PNG, and WebP input at any Gemini resolution. Exports lossless PNG.',
-  },
-  {
-    icon: 'Chrome',
-    title: 'Chrome extension / userscript',
-    desc: 'Install once and Gemini pages auto-replace previews, copies, and downloads with clean versions.',
-  },
-  {
-    icon: 'Terminal',
-    title: 'CLI & SDK for developers',
-    desc: 'pnpm dlx for zero-install runs or install globally. Supports image batches, CI/CD integration, and local video cleanup for .mp4, .webm, and .mov via CLI/SDK.',
+    desc: 'Accepts JPG, PNG, and WebP at any resolution. Exports lossless PNG.',
   },
   {
     icon: 'Monitor',
     title: 'Cross-platform',
-    desc: 'Works on major browsers and mobile. CLI covers Windows, macOS, and Linux.',
+    desc: 'Works in every major desktop and mobile browser — nothing to install.',
   },
   {
-    icon: 'Code',
-    title: 'Free, open source, no sign-up',
-    desc: 'MIT licensed, no usage limits, no account required. 5k+ GitHub Stars.',
+    icon: 'Lock',
+    title: 'Free, no sign-up',
+    desc: 'No usage limits, no account, no watermark on your cleaned images.',
   },
 ];
 
 export const workflows = [
   {
-    icon: 'AppWindow',
-    title: 'Userscript for Gemini pages',
-    desc: 'Keep cleanup inside Gemini. Preview, copy, and download actions automatically use clean images.',
-  },
-  {
     icon: 'FileVideo',
-    title: 'Gemini video watermark remover',
-    desc: 'Remove Gemini watermark from video locally in the browser, with a CLI fallback for larger MP4, WebM, and MOV files.',
+    title: 'AI video watermark remover',
+    desc: 'Remove watermarks from short AI-generated clips locally in the browser — MP4, WebM, and MOV.',
   },
   {
-    icon: 'SquareTerminal',
-    title: 'CLI tool',
-    desc: 'Built for local image batches, video cleanup, and CI automation',
+    icon: 'Package',
+    title: 'Batch ZIP export',
+    desc: 'Clean dozens of images in one go and grab them all in a single ZIP download.',
+  },
+  {
+    icon: 'SlidersHorizontal',
+    title: 'Before / after slider',
+    desc: 'Drag the comparison handle on every result to verify a pixel-clean removal.',
   },
 ];
 
 export const faqs = [
   {
-    q: 'Is this Gemini watermark remover completely free?',
-    a: 'Yes — completely free, no limits, no sign-up. MIT-licensed open source.',
+    q: 'Which AI watermarks can this remove?',
+    a: 'Sora (OpenAI), Runway, Pika Labs, Kling AI, Luma Dream Machine, Bing Image Creator, Adobe Firefly, Leonardo AI, Ideogram, Grok Imagine, Playground AI, Hailuo AI, Vidu, Meta AI, and Gemini / Nano Banana. Auto-Detect scans all common watermark positions.',
+  },
+  {
+    q: 'Is this AI watermark remover completely free?',
+    a: 'Yes — completely free, no limits, no sign-up.',
   },
   {
     q: 'Are my photos uploaded to a server?',
@@ -99,39 +103,31 @@ export const faqs = [
   },
   {
     q: 'How does the watermark removal actually work?',
-    a: 'Reverse alpha blending restores the original pixels under the watermark — no AI repaint.',
+    a: 'Reverse alpha blending: a watermark is blended as watermarked = alpha × logo + (1 − alpha) × original, so the engine solves for the original pixels. For Gemini we use exact calibrated alpha maps; for other AI tools an adaptive engine estimates the alpha per pixel.',
   },
   {
-    q: 'How do I remove a Gemini watermark from an image?',
-    a: 'Upload or drag the Gemini image into the online tool, let the local cleaner process it, then download the clean PNG or ZIP. Nothing is uploaded.',
+    q: 'What is the difference between exact and adaptive removal?',
+    a: 'Gemini publishes predictable watermark sizes and margins, so removal is pixel-exact. Other generators (Sora, Runway, Pika, ...) vary, so the adaptive engine detects the overlay in known watermark regions, estimates its opacity, reverses the blend and inpaints fully opaque logo cores.',
   },
   {
-    q: 'Can I use it as a Gemini logo remover online?',
-    a: 'Yes. It is built for visible Gemini logo watermarks, star overlays, and supported Nano Banana variants in Gemini-generated images.',
+    q: 'How do I remove a Sora or Runway watermark from an image?',
+    a: 'Select Sora or Runway (or leave Auto-Detect), drag the image into the tool, and download the clean PNG. Nothing is uploaded.',
   },
   {
-    q: 'Can I bulk remove Gemini watermarks?',
-    a: 'Yes. The online tool handles multiple files in parallel. For large batches, use the CLI with --out-dir.',
+    q: 'Can I bulk remove watermarks?',
+    a: 'Yes. Drop multiple files at once and download all cleaned images as a single ZIP.',
   },
   {
-    q: 'When should I use the CLI?',
-    a: 'For large image batches, local video cleanup, CI/CD automation, or scripted workflows.',
+    q: 'Can it remove watermarks from videos?',
+    a: 'Yes. Use the dedicated AI Video Watermark Remover page for browser-based video cleanup of short clips.',
   },
   {
-    q: 'Can it remove Gemini watermarks from videos?',
-    a: 'Yes. Use the dedicated Gemini Video Watermark Remover page for browser-based video cleanup, or the CLI/SDK for larger supported Gemini videos.',
-  },
-  {
-    q: 'Does it work on Nano Banana, star overlay, or other Gemini variants?',
-    a: 'Yes — logo, star overlay, and Nano Banana are all supported. If something isn\'t handled, open a GitHub issue.',
-  },
-  {
-    q: 'Is this a general remove watermark from image tool?',
-    a: 'No. It is tuned for visible Gemini watermarks. For unrelated watermarks, use a general image editor or a tool made for that source.',
+    q: 'Why is AI inpainting not used?',
+    a: 'Inpainting repaints the region with model guesses, which blurs detail and invents content. Reverse alpha blending restores the true pixels that are still present underneath a semi-transparent watermark.',
   },
   {
     q: 'Can it remove every kind of watermark?',
-    a: 'No. This tool only removes Gemini\'s visible watermark — not SynthID or watermarks from other sources.',
+    a: 'It targets visible overlay watermarks from AI generators. Invisible watermarks (like SynthID) and heavily tiled stock-photo watermarks are out of scope.',
   },
 ];
 

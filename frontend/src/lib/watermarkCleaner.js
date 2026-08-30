@@ -1,151 +1,34 @@
 // In-browser AI watermark removal engine.
 // Two strategies:
-// 1. Gemini exact: reverse alpha blending with the calibrated Gemini/Nano Banana
-//    alpha maps: original = (watermarked - alpha * logoValue) / (1 - alpha)
+// 1. Gemini exact: the official @pilio/gemini-watermark-remover SDK reverses the
+//    watermark with calibrated alpha maps: original = (watermarked - alpha * logo) / (1 - alpha)
 // 2. Adaptive: for other AI tools (Sora, Runway, Pika, Kling, Luma, ...) the exact
 //    alpha maps are not public, so we estimate a per-pixel alpha of the semi
 //    transparent overlay inside known watermark regions, reverse-blend it, and
 //    diffusion-inpaint near-opaque logo cores.
 
-import { ALPHA_MAP_BASE64, ALPHA_MAP_LENGTHS } from './geminiAlphaMaps';
+import { removeWatermarkFromImageDataSync } from '@pilio/gemini-watermark-remover';
 import { REGIONS, getTool } from './aiPresets';
 
-const ALPHA_NOISE_FLOOR = 3 / 255;
-const ALPHA_THRESHOLD = 2e-3;
-const MAX_ALPHA = 0.99;
-
-// ---------- Gemini exact engine ----------
-
-function decodeBase64(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-const mapCache = new Map();
-
-function getGeminiMap(key) {
-  if (!mapCache.has(key)) {
-    const bytes = decodeBase64(ALPHA_MAP_BASE64[key]);
-    const view = new Float32Array(bytes.buffer, bytes.byteOffset, ALPHA_MAP_LENGTHS[key]);
-    mapCache.set(key, new Float32Array(view));
-  }
-  return mapCache.get(key);
-}
-
-function baseSizeForKey(key) {
-  if (key === '36-v2') return 36;
-  if (key.startsWith('96')) return 96;
-  return 48;
-}
-
-function resizeMap(src, srcSize, dstSize) {
-  const dst = new Float32Array(dstSize * dstSize);
-  const scale = srcSize / dstSize;
-  for (let y = 0; y < dstSize; y++) {
-    for (let x = 0; x < dstSize; x++) {
-      const sx = Math.min(srcSize - 1.001, x * scale);
-      const sy = Math.min(srcSize - 1.001, y * scale);
-      const x0 = Math.floor(sx), y0 = Math.floor(sy);
-      const fx = sx - x0, fy = sy - y0;
-      const p00 = src[y0 * srcSize + x0];
-      const p10 = src[y0 * srcSize + x0 + 1];
-      const p01 = src[(y0 + 1) * srcSize + x0];
-      const p11 = src[(y0 + 1) * srcSize + x0 + 1];
-      dst[y * dstSize + x] =
-        p00 * (1 - fx) * (1 - fy) + p10 * fx * (1 - fy) + p01 * (1 - fx) * fy + p11 * fx * fy;
-    }
-  }
-  return dst;
-}
-
-function geminiCandidates(W, H) {
-  const list = [
-    { size: 48, mR: 32, mB: 32, key: '48' },
-    { size: 96, mR: 64, mB: 64, key: '96' },
-    { size: 48, mR: 96, mB: 96, key: '48' },
-    { size: 96, mR: 192, mB: 192, key: '96-20260520' },
-    { size: 36, mR: 96, mB: 96, key: '36-v2' },
-    { size: 46, mR: 32, mB: 32, key: '48' },
-  ];
-  return list.filter((c) => W - c.mR - c.size >= 0 && H - c.mB - c.size >= 0);
-}
-
-// Pearson correlation between (signed) alpha map and pixel luminance.
-function scoreCandidate(data, rowStride, x, y, map, size) {
-  let sa = 0, sl = 0, saa = 0, sll = 0, sal = 0;
-  const n = size * size;
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      const a = map[row * size + col];
-      const j = ((y + row) * rowStride + (x + col)) * 4;
-      const l = 0.299 * data[j] + 0.587 * data[j + 1] + 0.114 * data[j + 2];
-      sa += a;
-      sl += l;
-      saa += a * a;
-      sll += l * l;
-      sal += a * l;
-    }
-  }
-  const cov = sal - (sa * sl) / n;
-  const va = saa - (sa * sa) / n;
-  const vl = sll - (sl * sl) / n;
-  if (va <= 1e-9 || vl <= 1e-6) return 0;
-  return cov / Math.sqrt(va * vl);
-}
-
-function reverseAlphaBlendExact(data, rowStride, x, y, map, size) {
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      const raw = map[row * size + col];
-      const mag = Math.abs(raw);
-      const signal = Math.max(0, mag - ALPHA_NOISE_FLOOR);
-      if (signal < ALPHA_THRESHOLD) continue;
-      const alpha = Math.min(mag, MAX_ALPHA);
-      const logo = raw < 0 ? 0 : 255;
-      const om = 1 - alpha;
-      const j = ((y + row) * rowStride + (x + col)) * 4;
-      for (let c = 0; c < 3; c++) {
-        const original = (data[j + c] - alpha * logo) / om;
-        data[j + c] = Math.max(0, Math.min(255, Math.round(original)));
-      }
-    }
-  }
-}
-
-const GEMINI_SCORE_THRESHOLD = 0.32;
+// ---------- Gemini exact engine (official SDK) ----------
 
 function tryGeminiExact(ctx, W, H) {
-  const candidates = geminiCandidates(W, H);
-  if (candidates.length === 0) return false;
-  const win = Math.min(304, Math.min(W, H));
-  const wx = Math.max(0, W - win);
-  const wy = Math.max(0, H - win);
-  const ww = W - wx;
-  const wh = H - wy;
-  const region = ctx.getImageData(wx, wy, ww, wh);
-  let best = null;
-  for (const cfg of candidates) {
-    const base = getGeminiMap(cfg.key);
-    const bs = baseSizeForKey(cfg.key);
-    const map = cfg.size === bs ? base : resizeMap(base, bs, cfg.size);
-    const cx = W - cfg.mR - cfg.size - wx;
-    const cy = H - cfg.mB - cfg.size - wy;
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dx = -2; dx <= 2; dx++) {
-        const x = cx + dx;
-        const y = cy + dy;
-        if (x < 0 || y < 0 || x + cfg.size > ww || y + cfg.size > wh) continue;
-        const score = scoreCandidate(region.data, ww, x, y, map, cfg.size);
-        if (!best || score > best.score) best = { score, map, size: cfg.size, x, y };
-      }
-    }
+  try {
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const { imageData: out, meta } = removeWatermarkFromImageDataSync(imageData, {
+      adaptiveMode: 'auto',
+    });
+    if (!meta?.applied) return false;
+    const result =
+      typeof ImageData !== 'undefined' && out instanceof ImageData
+        ? out
+        : new ImageData(out.data, out.width, out.height);
+    ctx.putImageData(result, 0, 0);
+    return true;
+  } catch (e) {
+    console.error('Gemini SDK removal failed:', e);
+    return false;
   }
-  if (!best || best.score < GEMINI_SCORE_THRESHOLD) return false;
-  reverseAlphaBlendExact(region.data, ww, best.x, best.y, best.map, best.size);
-  ctx.putImageData(region, wx, wy);
-  return true;
 }
 
 // ---------- Adaptive engine ----------
@@ -233,7 +116,9 @@ function diffuseInpaint(data, mask, w, h, iters) {
   }
 }
 
-function adaptiveCleanRegion(ctx, W, H, rect) {
+function adaptiveCleanRegion(ctx, W, H, rect, opts = {}) {
+  const minCoverage = opts.strict ? 0.005 : 0.0025;
+  const minDominance = opts.strict ? 2.0 : 1.5;
   const rx = Math.max(0, Math.round(rect.x * W));
   const ry = Math.max(0, Math.round(rect.y * H));
   const rw = Math.min(W - rx, Math.round(rect.w * W));
@@ -255,13 +140,14 @@ function adaptiveCleanRegion(ctx, W, H, rect) {
   const dark = new Float32Array(n);
   let lightSum = 0;
   let darkSum = 0;
+  const MIN_DIFF = 10; // absolute lum contrast: rejects blur-bias artifacts on dark/bright backgrounds
   for (let i = 0; i < n; i++) {
     const diff = lum[i] - bg[i];
-    if (diff > 0) {
+    if (diff > MIN_DIFF) {
       const a = Math.min(diff / Math.max(8, 255 - bg[i]), 0.98);
       light[i] = a;
       if (a > 0.1) lightSum += a;
-    } else {
+    } else if (diff < -MIN_DIFF) {
       const a = Math.min(-diff / Math.max(8, bg[i]), 0.98);
       dark[i] = a;
       if (a > 0.1) darkSum += a;
@@ -271,7 +157,7 @@ function adaptiveCleanRegion(ctx, W, H, rect) {
   // A real watermark deviates strongly in ONE direction; texture noise deviates both ways.
   const maxSum = Math.max(lightSum, darkSum);
   const minSum = Math.min(lightSum, darkSum);
-  if (maxSum < 1 || (minSum > 0 && maxSum / Math.max(minSum, 0.001) < 1.5)) return false;
+  if (maxSum < 1 || (minSum > 0 && maxSum / Math.max(minSum, 0.001) < minDominance)) return false;
 
   const isLight = lightSum >= darkSum;
   const alpha = boxBlur(isLight ? light : dark, rw, rh, 1);
@@ -286,8 +172,26 @@ function adaptiveCleanRegion(ctx, W, H, rect) {
     }
   }
   const coverage = cover / n;
-  if (coverage < 0.0025 || coverage > 0.42) return false;
+  if (coverage < minCoverage || coverage > 0.42) return false;
   if (coverAlpha / Math.max(cover, 1) < 0.18) return false;
+
+  // Compactness gate: a real watermark is localized; gradient/texture skew is
+  // spread across the whole tile and must be rejected.
+  let minX = rw, minY = rh, maxX = -1, maxY = -1;
+  for (let i = 0; i < n; i++) {
+    if (alpha[i] > 0.14) {
+      const x = i % rw;
+      const y = (i / rw) | 0;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < 0) return false;
+  const bboxArea = (maxX - minX + 1) * (maxY - minY + 1);
+  if (bboxArea / n > 0.55) return false;
+  if (cover / bboxArea < 0.12) return false;
 
   const logo = isLight ? 255 : 0;
   let inpaintMask = new Uint8Array(n);
@@ -308,6 +212,23 @@ function adaptiveCleanRegion(ctx, W, H, rect) {
   return true;
 }
 
+// Full-frame tile scan: catches watermarks outside the preset regions
+// (e.g. Sora's moving logo, Runway's multi-position text).
+function fullScanRects() {
+  const rects = [];
+  for (let ty = 0; ty < 4; ty++) {
+    for (let tx = 0; tx < 4; tx++) {
+      rects.push({
+        x: Math.max(0, tx * 0.25 - 0.015),
+        y: Math.max(0, ty * 0.25 - 0.015),
+        w: 0.28,
+        h: 0.28,
+      });
+    }
+  }
+  return rects;
+}
+
 // ---------- Public API ----------
 
 export function cleanCanvas(canvas, toolId = 'auto') {
@@ -326,6 +247,12 @@ export function cleanCanvas(canvas, toolId = 'auto') {
   if (applied === 0) {
     for (const key of tool.regions) {
       if (adaptiveCleanRegion(ctx, W, H, REGIONS[key])) applied++;
+    }
+    if (applied === 0) {
+      for (const rect of fullScanRects()) {
+        if (adaptiveCleanRegion(ctx, W, H, rect, { strict: true })) applied++;
+        if (applied >= 3) break;
+      }
     }
     if (applied > 0) method = 'adaptive';
   }

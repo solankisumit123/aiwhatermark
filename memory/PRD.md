@@ -12,13 +12,12 @@ Clone `https://geminiwatermarkremover.io/` (design, layout, colors, structure). 
 - All processing local in browser (privacy-first; keep this invariant)
 
 ## Engine (`/app/frontend/src/lib/watermarkCleaner.js`)
-1. **Gemini exact**: embedded calibrated alpha maps (`/app/frontend/src/lib/geminiAlphaMaps.js`, extracted from user-provided MIT userscript). Candidate configs (logoSize/margins: 48/32, 96/64, 48/96, 96/192, 36/96, 46/32) scored by Pearson correlation (threshold 0.32) with ±2px offset scan in a bottom-right 304px window; reverse alpha blend on best match.
-2. **Adaptive** (other AIs): per preset region (`/app/frontend/src/lib/aiPresets.js` — 16 tools, corner/center region presets), estimates background via masked box blur, per-pixel alpha (light/dark polarity with dominance ratio ≥1.5 guard, coverage 0.25%–42%), reverse blends, diffusion-inpaints near-opaque cores (alpha>0.72, 40 Jacobi iterations).
+1. **Gemini exact**: official npm SDK `@pilio/gemini-watermark-remover` (`removeWatermarkFromImageDataSync`, adaptiveMode:'auto') — maintained engine by userscript author, handles all logo sizes/margins/variants. (Custom in-house alpha map implementation + geminiAlphaMaps.js removed 2026-06, replaced by SDK.)
+2. **Adaptive** (other AIs): per preset region (`/app/frontend/src/lib/aiPresets.js` — 16 tools, corner/center region presets) PLUS 4x4 full-frame tile-scan fallback (strict thresholds) for watermarks at any position. Guards: MIN_DIFF=10 absolute lum contrast (fixes dark-bg false positives), dominance ratio (1.5 / 2.0 strict), coverage 0.25%–42% (0.5% strict), mean alpha ≥0.18, compactness gate (bbox ≤55% of region, fill ≥0.12). Reverse blends + diffusion-inpaints near-opaque cores (alpha>0.72, 40 Jacobi iterations).
 - API: `cleanFileToBlob(file, toolId)` → `{blob, width, height, detection:{applied, method:'gemini-exact'|'adaptive'|'none', tool}}`; also `cleanCanvas(canvas, toolId)` (used per-frame by video page), `cleanImageOnCanvas`.
 
 ## Key Files
-- `/app/frontend/src/lib/watermarkCleaner.js` — engine
-- `/app/frontend/src/lib/geminiAlphaMaps.js` — base64 alpha map data (large, generated)
+- `/app/frontend/src/lib/watermarkCleaner.js` — engine (SDK-backed Gemini path + adaptive multi-AI)
 - `/app/frontend/src/lib/aiPresets.js` — AI_TOOLS registry + REGIONS
 - `/app/frontend/src/components/site/Hero.jsx` — AI selector chips (data-testid `ai-select-{id}`), dropzone, file input
 - `/app/frontend/src/components/site/CleanupPanel.jsx` — result cards, detection badges (exact/adaptive/none), ZIP export
@@ -28,7 +27,8 @@ Clone `https://geminiwatermarkremover.io/` (design, layout, colors, structure). 
 ## Implemented (with dates)
 - 2026-06 (prev session): Site clone, CompareSlider, batch ZIP, Video route, corner-patch cleaner (replaced)
 - 2026-06 (this session): Real Reverse Alpha Blending engine (Gemini exact + adaptive multi-AI), 16-tool selector UI, full rebrand to AI Watermark Remover, GitHub/Chrome-extension sections removed, detection badges, video page upgraded to new engine
-- Testing: Node unit validation (restoration maxErr 2/255, corr 0.95) + testing_agent E2E iteration_1.json → 100% pass
+- Testing: Node unit validation + testing_agent E2E iteration_1.json (100%) & iteration_2.json (found tile-scan false positive → fixed with MIN_DIFF + compactness gates) → final self-test 8/8: 4 REAL Gemini samples (from official engine test suite, staged at /app/tests/samples/) all exact, adaptive Sora/Runway/non-preset positions pass, plain image correctly untouched
+- 2026-06: User uploaded full engine source zip (== npm SDK v1.0.41); official @pilio/gemini-watermark-remover SDK integrated as the Gemini engine; real test samples adopted; full-frame tile scan added so watermarks anywhere are caught
 
 ## Backlog
 - P1: Per-image progress bar for batch cleaning

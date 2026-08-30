@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only E2E of AI Watermark Remover client-side engine. 4 REAL Gemini watermarked samples (1-1, 16-9, 9-16, 20260616.png up to 2752x1536) ALL produced detection-badge-exact ('Exact alpha map · Gemini'). Adaptive non-preset tile-scan test (mid-left blob at 80,300 on 1000x700) triggered detection-badge-adaptive as expected. Sora preset produced detection-badge-adaptive with text 'Sora (OpenAI)'. Runway multi-position produced detection-badge-adaptive with 'Runway'. Batch of 2 images processed both, ZIP downloaded as 'ai-watermark-removed.zip', per-item PNG downloaded as '1-1-clean.png'. /video route loads 'AI Video Watermark Remover' cleanly. Zero console/page errors during any processing — @pilio/gemini-watermark-remover SDK loads and runs correctly in browser. ONE HIGH-PRIORITY BUG FOUND: plain no-watermark gradient (800x600) incorrectly reported detection-badge-adaptive instead of detection-badge-none. The new 4x4 full-frame tile-scan fallback in cleanCanvas is too aggressive and produces a false positive on textured/gradient backgrounds with no watermark.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Plain (no-watermark) image detection in Auto mode",
+        "issue": "Pure gradient image with NO watermark shows detection-badge-adaptive instead of the expected amber detection-badge-none. The fullScanRects 4x4 tile fallback in watermarkCleaner.js triggers adaptiveCleanRegion on gradient tiles even though there is no real watermark. The guard 'maxSum/minSum >= 1.5' + coverage/coverAlpha thresholds are not restrictive enough on the full-frame fallback path. Also risks producing visible artifacts on clean images processed via Auto.",
+        "affected_selectors": ["[data-testid=\"detection-badge-none\"]", "[data-testid=\"detection-badge-adaptive\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Tighten the full-frame tile-scan fallback (fullScanRects) in /app/frontend/src/lib/watermarkCleaner.js so it does NOT fire on plain/gradient images. Suggested: (a) only invoke fullScanRects when the tool.regions preset search yields zero AND some global 'watermark-likeness' pre-check passes (e.g. require a minimum count of pixels where |lum-bg|>threshold globally, or require alpha 'skewness' >= X); (b) raise coverage lower bound (currently 0.0025) or the coverAlpha threshold specifically for the fallback path; (c) require at least 2 fallback tiles to agree before declaring adaptive.",
+    "After tightening, verify the 4 real Gemini samples still hit detection-badge-exact and the adaptive_nonpreset image still hits detection-badge-adaptive."
+  ],
+  "critical_code_review_comments": [
+    "watermarkCleaner.js cleanCanvas: the tile-scan fallback lacks a 'is there anything unusual in this image at all?' pre-check, so on clean gradients some tiles cross the coverage/coverAlpha thresholds by luck and mutate pixels. On real content this can create visible smudges on clean images uploaded to Auto mode.",
+    "adaptiveCleanRegion mutates the ImageData and putImageData back even when the detection is marginal — combined with the loose fallback thresholds this means false positives are also visually destructive.",
+    "processFilesSequentially awaits cleanFileToBlob (sync CPU) sequentially — fine, but the large 2752x1536 Gemini sample took several seconds; consider surfacing per-image progress; not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "10/11 checks pass (91%)"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "Created /tmp/wm_tests/{adaptive_nonpreset.png (1000x700 mid-left blob), sora_test.png (800x600 bottom-left cloud), runway_test.png (900x1200 two-position white blobs), plain_test.png (800x600 pure gradient)}. Real Gemini samples used from /app/tests/samples/.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Playwright selectors work fine with set_input_files against the hidden input[data-testid='file-input']. The 20260616.png Gemini sample (2752x1536) completes within ~10s on this environment — 30s timeout is plenty. The one open bug is the false-positive adaptive detection on plain images (tile-scan fallback). Regression path: re-run the 4 real Gemini samples + the adaptive_nonpreset test to make sure the fix doesn't break exact/adaptive true positives. Also re-check plain gradient → detection-badge-none.",
+  "rca of the issue": "cleanCanvas() in /app/frontend/src/lib/watermarkCleaner.js runs a 4x4 fullScanRects fallback whenever the Gemini exact SDK doesn't apply AND the tool's preset regions don't fire. adaptiveCleanRegion's guards (coverage>=0.0025, coverAlpha/cover>=0.18, maxSum/minSum>=1.5) were designed for known corner regions where the caller has already committed to 'watermark is likely here'. When looped over 16 arbitrary tiles of a clean gradient, at least one tile satisfies those thresholds by random luminance skew from the gradient itself, so applied becomes >0 and method='adaptive' is reported. Fix: add a global pre-gate (e.g. compute the ratio of pixels with |lum-globalBg|>K to total pixels and require it to exceed a small threshold before entering the fallback), and/or raise the fallback-specific thresholds and require agreement across neighboring tiles."
+}
